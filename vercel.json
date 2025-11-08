@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/prices/buff163.json",
+      "destination": "/api/buff163"
+    },
+    {
+      "source": "/api/prices/csfloat.json",
+      "destination": "/api/csfloat"
+    }
+  ]
+}
+

@@ -1,0 +1,12 @@
+{
+  "/api/prices": {
+    "target": "https://prices.csgotrader.app",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/api/prices": "/latest"
+    },
+    "logLevel": "debug"
+  }
+}
+

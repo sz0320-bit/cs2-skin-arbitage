@@ -1,0 +1,88 @@
+<div class="container">
+    <div class="hero-section">
+      <h1 class="hero-title">{{ title() }}</h1>
+      <p class="hero-subtitle">{{ subtitle() }}</p>
+  
+      <div class="action-buttons">
+        <button mat-raised-button color="primary" routerLink="/opportunities">
+          <mat-icon>trending_up</mat-icon>
+          View Opportunities
+        </button>
+        <button mat-raised-button>
+          <mat-icon>analytics</mat-icon>
+          Analytics
+        </button>
+      </div>
+    </div>
+  
+    <div class="cards-grid">
+      <mat-card class="feature-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="card-icon">monitor_heart</mat-icon>
+          <mat-card-title>Real-time Monitoring</mat-card-title>
+          <mat-card-subtitle>Live price tracking</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Monitor CS2 skin prices across multiple marketplaces in real-time. Get instant notifications on price changes and arbitrage opportunities.</p>
+          <div class="chip-container">
+            <mat-chip>Live Prices</mat-chip>
+            <mat-chip>Alerts</mat-chip>
+          </div>
+        </mat-card-content>
+      </mat-card>
+  
+      <mat-card class="feature-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="card-icon">insights</mat-icon>
+          <mat-card-title>Smart Analytics</mat-card-title>
+          <mat-card-subtitle>AI-powered insights</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Advanced analytics and machine learning algorithms to identify profitable trading patterns and predict market trends.</p>
+          <div class="chip-container">
+            <mat-chip>AI Analysis</mat-chip>
+            <mat-chip>Predictions</mat-chip>
+          </div>
+        </mat-card-content>
+      </mat-card>
+  
+      <mat-card class="feature-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="card-icon">shopping_cart</mat-icon>
+          <mat-card-title>Multi-Market Support</mat-card-title>
+          <mat-card-subtitle>Compare across platforms</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Compare prices from Steam Market, CSGOFloat, Buff163, and other popular marketplaces to find the best arbitrage opportunities.</p>
+          <div class="chip-container">
+            <mat-chip>Steam</mat-chip>
+            <mat-chip>CSGOFloat</mat-chip>
+            <mat-chip>Buff163</mat-chip>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  
+    <div class="stats-section">
+      <mat-card class="stat-card">
+        <div class="stat-content">
+          <h2 class="stat-number">12,543</h2>
+          <p class="stat-label">Tracked Items</p>
+        </div>
+      </mat-card>
+  
+      <mat-card class="stat-card">
+        <div class="stat-content">
+          <h2 class="stat-number">$2.4M</h2>
+          <p class="stat-label">Market Volume</p>
+        </div>
+      </mat-card>
+  
+      <mat-card class="stat-card">
+        <div class="stat-content">
+          <h2 class="stat-number">156</h2>
+          <p class="stat-label">Active Opportunities</p>
+        </div>
+      </mat-card>
+    </div>
+  </div>

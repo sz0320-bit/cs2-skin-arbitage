@@ -9,8 +9,8 @@ import { ArbitrageOpportunity, Buff163Response, CSFloatResponse, PLATFORM_FEES }
 export class PriceService {
   private http = inject(HttpClient);
 
-  private readonly BUFF163_URL = 'https://prices.csgotrader.app/latest/buff163.json';
-  private readonly CSFLOAT_URL = 'https://prices.csgotrader.app/latest/csfloat.json';
+  private readonly BUFF163_URL = '/api/prices/buff163.json';
+  private readonly CSFLOAT_URL = '/api/prices/csfloat.json';
 
   // CS2 weapon categories
   private readonly WEAPON_CATEGORIES: { [key: string]: string } = {
@@ -115,8 +115,8 @@ export class PriceService {
 
       // Use starting_at price for Buff163 (listing price)
       const buff163Price = buff163Item?.starting_at?.price || null;
-      // Use avg_price for CSFloat
-      const csfloatPrice = csfloatItem?.avg_price || null;
+      // Use price for CSFloat (fallback to avg_price if price not available)
+      const csfloatPrice = csfloatItem?.price || csfloatItem?.avg_price || null;
 
       // Skip if we don't have prices from both platforms
       if (!buff163Price || !csfloatPrice) continue;

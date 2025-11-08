@@ -56,8 +56,7 @@ export class OpportunitiesComponent implements OnInit {
     'cb_roi',
     'profitable',
     'category',
-    'wear',
-    'reliability'
+    'wear'
   ];
 
   // All data
@@ -77,9 +76,47 @@ export class OpportunitiesComponent implements OnInit {
   searchTerm = signal<string>('');
   selectedCategory = signal<string>('all');
   selectedWear = signal<string>('all');
-  minProfit = signal<number>(0);
-  minROI = signal<number>(0);
+  selectedPlatform = signal<string>('all');
+  selectedDirection = signal<string>('all');
+  minProfit = signal<number | null>(null);
+  maxProfit = signal<number | null>(null);
+  minROI = signal<number | null>(null);
+  maxROI = signal<number | null>(null);
+  minPrice = signal<number | null>(null);
+  maxPrice = signal<number | null>(null);
   profitableOnly = signal<boolean>(false);
+  
+  // Available filter options (computed from data)
+  availableCategories = computed(() => {
+    const cats = new Set(this.allOpportunities().map(o => o.category));
+    return ['all', ...Array.from(cats).sort()];
+  });
+  
+  availableWears = computed(() => {
+    const wears = new Set(this.allOpportunities().map(o => o.wear).filter(w => w !== 'N/A'));
+    return ['all', ...Array.from(wears).sort()];
+  });
+  
+  platforms = ['all', 'CSFloat', 'Buff163'];
+  directions = ['all', 'B→C', 'C→B'];
+  
+  // Active filters count
+  activeFiltersCount = computed(() => {
+    let count = 0;
+    if (this.searchTerm()) count++;
+    if (this.selectedCategory() !== 'all') count++;
+    if (this.selectedWear() !== 'all') count++;
+    if (this.selectedPlatform() !== 'all') count++;
+    if (this.selectedDirection() !== 'all') count++;
+    if (this.minProfit() !== null) count++;
+    if (this.maxProfit() !== null) count++;
+    if (this.minROI() !== null) count++;
+    if (this.maxROI() !== null) count++;
+    if (this.minPrice() !== null) count++;
+    if (this.maxPrice() !== null) count++;
+    if (this.profitableOnly()) count++;
+    return count;
+  });
 
   // Pagination
   pageSize = signal<number>(25);
@@ -89,9 +126,6 @@ export class OpportunitiesComponent implements OnInit {
   // Sorting
   sortColumn = signal<string>('bestProfit');
   sortDirection = signal<'asc' | 'desc'>('desc');
-
-  categories = ['all', 'Rifle', 'Pistol', 'SMG', 'Sniper Rifle', 'Shotgun', 'Heavy', 'Knife', 'Gloves'];
-  wears = ['all', 'Factory New', 'Minimal Wear', 'Field-Tested', 'Well-Worn', 'Battle-Scarred'];
 
   ngOnInit() {
     this.loadData();
@@ -136,14 +170,44 @@ export class OpportunitiesComponent implements OnInit {
       filtered = filtered.filter(item => item.wear === this.selectedWear());
     }
 
-    // Min profit filter
-    if (this.minProfit() > 0) {
-      filtered = filtered.filter(item => item.bestProfit !== null && item.bestProfit >= this.minProfit());
+    // Platform filter (cheaper platform)
+    if (this.selectedPlatform() !== 'all') {
+      filtered = filtered.filter(item => item.cheaperPlatform === this.selectedPlatform());
     }
 
-    // Min ROI filter
-    if (this.minROI() > 0) {
-      filtered = filtered.filter(item => item.bestROI !== null && item.bestROI >= this.minROI());
+    // Direction filter
+    if (this.selectedDirection() !== 'all') {
+      filtered = filtered.filter(item => item.bestDirection === this.selectedDirection());
+    }
+
+    // Price range filter
+    if (this.minPrice() !== null) {
+      filtered = filtered.filter(item => 
+        (item.csfloatPrice !== null && item.csfloatPrice >= this.minPrice()!) ||
+        (item.buff163Price !== null && item.buff163Price >= this.minPrice()!)
+      );
+    }
+    if (this.maxPrice() !== null) {
+      filtered = filtered.filter(item => 
+        (item.csfloatPrice !== null && item.csfloatPrice <= this.maxPrice()!) ||
+        (item.buff163Price !== null && item.buff163Price <= this.maxPrice()!)
+      );
+    }
+
+    // Profit range filter
+    if (this.minProfit() !== null) {
+      filtered = filtered.filter(item => item.bestProfit !== null && item.bestProfit >= this.minProfit()!);
+    }
+    if (this.maxProfit() !== null) {
+      filtered = filtered.filter(item => item.bestProfit !== null && item.bestProfit <= this.maxProfit()!);
+    }
+
+    // ROI range filter
+    if (this.minROI() !== null) {
+      filtered = filtered.filter(item => item.bestROI !== null && item.bestROI >= this.minROI()!);
+    }
+    if (this.maxROI() !== null) {
+      filtered = filtered.filter(item => item.bestROI !== null && item.bestROI <= this.maxROI()!);
     }
 
     // Profitable only filter
@@ -208,14 +272,14 @@ export class OpportunitiesComponent implements OnInit {
   }
 
   onMinProfitChange(event: Event) {
-    const value = parseFloat((event.target as HTMLInputElement).value) || 0;
-    this.minProfit.set(value);
+    const value = parseFloat((event.target as HTMLInputElement).value);
+    this.minProfit.set(isNaN(value) ? null : value);
     this.applyFilters();
   }
 
   onMinROIChange(event: Event) {
-    const value = parseFloat((event.target as HTMLInputElement).value) || 0;
-    this.minROI.set(value);
+    const value = parseFloat((event.target as HTMLInputElement).value);
+    this.minROI.set(isNaN(value) ? null : value);
     this.applyFilters();
   }
 
@@ -242,24 +306,54 @@ export class OpportunitiesComponent implements OnInit {
     this.searchTerm.set('');
     this.selectedCategory.set('all');
     this.selectedWear.set('all');
-    this.minProfit.set(0);
-    this.minROI.set(0);
+    this.selectedPlatform.set('all');
+    this.selectedDirection.set('all');
+    this.minProfit.set(null);
+    this.maxProfit.set(null);
+    this.minROI.set(null);
+    this.maxROI.set(null);
+    this.minPrice.set(null);
+    this.maxPrice.set(null);
     this.profitableOnly.set(false);
+    this.applyFilters();
+  }
+
+  onPlatformChange(value: string) {
+    this.selectedPlatform.set(value);
+    this.applyFilters();
+  }
+
+  onDirectionChange(value: string) {
+    this.selectedDirection.set(value);
+    this.applyFilters();
+  }
+
+  onMinPriceChange(event: Event) {
+    const value = parseFloat((event.target as HTMLInputElement).value);
+    this.minPrice.set(isNaN(value) ? null : value);
+    this.applyFilters();
+  }
+
+  onMaxPriceChange(event: Event) {
+    const value = parseFloat((event.target as HTMLInputElement).value);
+    this.maxPrice.set(isNaN(value) ? null : value);
+    this.applyFilters();
+  }
+
+  onMaxProfitChange(event: Event) {
+    const value = parseFloat((event.target as HTMLInputElement).value);
+    this.maxProfit.set(isNaN(value) ? null : value);
+    this.applyFilters();
+  }
+
+  onMaxROIChange(event: Event) {
+    const value = parseFloat((event.target as HTMLInputElement).value);
+    this.maxROI.set(isNaN(value) ? null : value);
     this.applyFilters();
   }
 
   getDirectionColor(direction: string): string {
     return direction === 'B→C' ? '#4caf50' : direction === 'C→B' ? '#2196f3' : '#757575';
-  }
-
-  getReliabilityColor(reliability: string): string {
-    const colors: { [key: string]: string } = {
-      'High': '#4caf50',
-      'Medium': '#ff9800',
-      'Low': '#f44336',
-      'N/A': '#757575'
-    };
-    return colors[reliability] || '#757575';
   }
 
   formatCurrency(value: number | null): string {

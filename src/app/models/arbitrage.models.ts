@@ -12,7 +12,9 @@ export interface Buff163Response {
 
 export interface CSFloatResponse {
   [itemName: string]: {
-    avg_price?: number;
+    price?: number;        // Current sale price
+    list_price?: number;   // Current listing price
+    avg_price?: number;    // Average price (may not always be present)
     avg_list_price?: number;
     count?: number;
   };

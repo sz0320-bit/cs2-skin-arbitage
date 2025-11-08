@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
 import { MatSortModule, Sort } from '@angular/material/sort';
@@ -11,21 +11,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatCardModule } from '@angular/material/card';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { RouterLink } from '@angular/router';
-
-export interface SkinOpportunity {
-  id: number;
-  name: string;
-  quality: string;
-  buyMarket: string;
-  buyPrice: number;
-  sellMarket: string;
-  sellPrice: number;
-  profit: number;
-  profitPercent: number;
-  rarity: string;
-  trend: 'up' | 'down' | 'stable';
-}
+import { PriceService } from '../services/price.service';
+import { ArbitrageOpportunity } from '../models/arbitrage.models';
 
 @Component({
   selector: 'app-opportunities',
@@ -42,257 +32,87 @@ export interface SkinOpportunity {
     MatIconModule,
     MatChipsModule,
     MatCardModule,
-    MatTooltipModule
+    MatTooltipModule,
+    MatProgressSpinnerModule,
+    MatCheckboxModule
   ],
   templateUrl: './opportunities.html',
   styleUrl: './opportunities.scss'
 })
 export class OpportunitiesComponent implements OnInit {
+  private priceService = inject(PriceService);
+
   displayedColumns: string[] = [
-    'name',
-    'quality',
-    'rarity',
-    'buyMarket',
-    'buyPrice',
-    'sellMarket',
-    'sellPrice',
-    'profit',
-    'profitPercent',
-    'trend'
+    'itemName',
+    'csfloatPrice',
+    'buff163Price',
+    'rawPriceDiff',
+    'percentDifference',
+    'cheaperPlatform',
+    'bestDirection',
+    'bestProfit',
+    'bestROI',
+    'bc_roi',
+    'cb_roi',
+    'profitable',
+    'category',
+    'wear',
+    'reliability'
   ];
 
   // All data
-  private allOpportunities = signal<SkinOpportunity[]>([]);
+  private allOpportunities = signal<ArbitrageOpportunity[]>([]);
 
   // Filtered and sorted data
-  filteredOpportunities = signal<SkinOpportunity[]>([]);
+  filteredOpportunities = signal<ArbitrageOpportunity[]>([]);
 
   // Paginated data to display
-  paginatedOpportunities = signal<SkinOpportunity[]>([]);
+  paginatedOpportunities = signal<ArbitrageOpportunity[]>([]);
+
+  // Loading state
+  isLoading = signal<boolean>(true);
+  error = signal<string | null>(null);
 
   // Filter values
   searchTerm = signal<string>('');
-  selectedRarity = signal<string>('all');
-  selectedMarket = signal<string>('all');
+  selectedCategory = signal<string>('all');
+  selectedWear = signal<string>('all');
   minProfit = signal<number>(0);
+  minROI = signal<number>(0);
+  profitableOnly = signal<boolean>(false);
 
   // Pagination
-  pageSize = signal<number>(10);
+  pageSize = signal<number>(25);
   pageIndex = signal<number>(0);
   totalItems = computed(() => this.filteredOpportunities().length);
 
   // Sorting
-  sortColumn = signal<string>('profitPercent');
+  sortColumn = signal<string>('bestProfit');
   sortDirection = signal<'asc' | 'desc'>('desc');
 
-  rarities = ['all', 'Consumer Grade', 'Industrial Grade', 'Mil-Spec', 'Restricted', 'Classified', 'Covert'];
-  markets = ['all', 'Steam', 'CSGOFloat', 'Buff163', 'Skinport', 'DMarket'];
+  categories = ['all', 'Rifle', 'Pistol', 'SMG', 'Sniper Rifle', 'Shotgun', 'Heavy', 'Knife', 'Gloves'];
+  wears = ['all', 'Factory New', 'Minimal Wear', 'Field-Tested', 'Well-Worn', 'Battle-Scarred'];
 
   ngOnInit() {
-    this.loadMockData();
-    this.applyFilters();
+    this.loadData();
   }
 
-  loadMockData() {
-    const mockData: SkinOpportunity[] = [
-      {
-        id: 1,
-        name: 'AK-47 | Redline',
-        quality: 'Field-Tested',
-        buyMarket: 'Steam',
-        buyPrice: 24.50,
-        sellMarket: 'CSGOFloat',
-        sellPrice: 28.75,
-        profit: 4.25,
-        profitPercent: 17.35,
-        rarity: 'Classified',
-        trend: 'up'
-      },
-      {
-        id: 2,
-        name: 'AWP | Asiimov',
-        quality: 'Field-Tested',
-        buyMarket: 'Buff163',
-        buyPrice: 82.30,
-        sellMarket: 'Steam',
-        sellPrice: 95.60,
-        profit: 13.30,
-        profitPercent: 16.16,
-        rarity: 'Covert',
-        trend: 'up'
-      },
-      {
-        id: 3,
-        name: 'M4A4 | Howl',
-        quality: 'Minimal Wear',
-        buyMarket: 'CSGOFloat',
-        buyPrice: 3250.00,
-        sellMarket: 'DMarket',
-        sellPrice: 3580.00,
-        profit: 330.00,
-        profitPercent: 10.15,
-        rarity: 'Covert',
-        trend: 'stable'
-      },
-      {
-        id: 4,
-        name: 'Glock-18 | Fade',
-        quality: 'Factory New',
-        buyMarket: 'Steam',
-        buyPrice: 445.00,
-        sellMarket: 'Skinport',
-        sellPrice: 512.00,
-        profit: 67.00,
-        profitPercent: 15.06,
-        rarity: 'Restricted',
-        trend: 'up'
-      },
-      {
-        id: 5,
-        name: 'Desert Eagle | Blaze',
-        quality: 'Factory New',
-        buyMarket: 'Buff163',
-        buyPrice: 285.50,
-        sellMarket: 'Steam',
-        sellPrice: 318.20,
-        profit: 32.70,
-        profitPercent: 11.45,
-        rarity: 'Restricted',
-        trend: 'down'
-      },
-      {
-        id: 6,
-        name: 'USP-S | Kill Confirmed',
-        quality: 'Minimal Wear',
-        buyMarket: 'Steam',
-        buyPrice: 45.80,
-        sellMarket: 'CSGOFloat',
-        sellPrice: 54.30,
-        profit: 8.50,
-        profitPercent: 18.56,
-        rarity: 'Classified',
-        trend: 'up'
-      },
-      {
-        id: 7,
-        name: 'Karambit | Doppler',
-        quality: 'Factory New',
-        buyMarket: 'CSGOFloat',
-        buyPrice: 1850.00,
-        sellMarket: 'Buff163',
-        sellPrice: 2015.00,
-        profit: 165.00,
-        profitPercent: 8.92,
-        rarity: 'Covert',
-        trend: 'stable'
-      },
-      {
-        id: 8,
-        name: 'M4A1-S | Icarus Fell',
-        quality: 'Factory New',
-        buyMarket: 'Steam',
-        buyPrice: 125.00,
-        sellMarket: 'Skinport',
-        sellPrice: 148.50,
-        profit: 23.50,
-        profitPercent: 18.80,
-        rarity: 'Restricted',
-        trend: 'up'
-      },
-      {
-        id: 9,
-        name: 'AK-47 | Fire Serpent',
-        quality: 'Field-Tested',
-        buyMarket: 'Buff163',
-        buyPrice: 865.00,
-        sellMarket: 'Steam',
-        sellPrice: 975.00,
-        profit: 110.00,
-        profitPercent: 12.72,
-        rarity: 'Covert',
-        trend: 'up'
-      },
-      {
-        id: 10,
-        name: 'P250 | Asiimov',
-        quality: 'Field-Tested',
-        buyMarket: 'Steam',
-        buyPrice: 3.25,
-        sellMarket: 'CSGOFloat',
-        sellPrice: 3.95,
-        profit: 0.70,
-        profitPercent: 21.54,
-        rarity: 'Industrial Grade',
-        trend: 'stable'
-      },
-      {
-        id: 11,
-        name: 'AWP | Dragon Lore',
-        quality: 'Factory New',
-        buyMarket: 'CSGOFloat',
-        buyPrice: 9500.00,
-        sellMarket: 'Buff163',
-        sellPrice: 10250.00,
-        profit: 750.00,
-        profitPercent: 7.89,
-        rarity: 'Covert',
-        trend: 'up'
-      },
-      {
-        id: 12,
-        name: 'M4A4 | Neo-Noir',
-        quality: 'Factory New',
-        buyMarket: 'Steam',
-        buyPrice: 18.90,
-        sellMarket: 'Skinport',
-        sellPrice: 22.40,
-        profit: 3.50,
-        profitPercent: 18.52,
-        rarity: 'Classified',
-        trend: 'up'
-      },
-      {
-        id: 13,
-        name: 'Butterfly Knife | Fade',
-        quality: 'Factory New',
-        buyMarket: 'Buff163',
-        buyPrice: 2150.00,
-        sellMarket: 'DMarket',
-        sellPrice: 2385.00,
-        profit: 235.00,
-        profitPercent: 10.93,
-        rarity: 'Covert',
-        trend: 'stable'
-      },
-      {
-        id: 14,
-        name: 'AK-47 | Vulcan',
-        quality: 'Factory New',
-        buyMarket: 'Steam',
-        buyPrice: 68.50,
-        sellMarket: 'CSGOFloat',
-        sellPrice: 79.80,
-        profit: 11.30,
-        profitPercent: 16.50,
-        rarity: 'Classified',
-        trend: 'up'
-      },
-      {
-        id: 15,
-        name: 'Five-SeveN | Case Hardened',
-        quality: 'Factory New',
-        buyMarket: 'CSGOFloat',
-        buyPrice: 12.80,
-        sellMarket: 'Steam',
-        sellPrice: 15.60,
-        profit: 2.80,
-        profitPercent: 21.88,
-        rarity: 'Mil-Spec',
-        trend: 'up'
-      }
-    ];
+  loadData() {
+    this.isLoading.set(true);
+    this.error.set(null);
 
-    this.allOpportunities.set(mockData);
+    this.priceService.fetchArbitrageOpportunities().subscribe({
+      next: (opportunities) => {
+        this.allOpportunities.set(opportunities);
+        this.applyFilters();
+        this.isLoading.set(false);
+      },
+      error: (err) => {
+        console.error('Error loading opportunities:', err);
+        this.error.set('Failed to load opportunities. Please try again.');
+        this.isLoading.set(false);
+      }
+    });
   }
 
   applyFilters() {
@@ -302,26 +122,33 @@ export class OpportunitiesComponent implements OnInit {
     const search = this.searchTerm().toLowerCase();
     if (search) {
       filtered = filtered.filter(item =>
-        item.name.toLowerCase().includes(search) ||
-        item.quality.toLowerCase().includes(search)
+        item.itemName.toLowerCase().includes(search)
       );
     }
 
-    // Rarity filter
-    if (this.selectedRarity() !== 'all') {
-      filtered = filtered.filter(item => item.rarity === this.selectedRarity());
+    // Category filter
+    if (this.selectedCategory() !== 'all') {
+      filtered = filtered.filter(item => item.category === this.selectedCategory());
     }
 
-    // Market filter
-    if (this.selectedMarket() !== 'all') {
-      filtered = filtered.filter(
-        item => item.buyMarket === this.selectedMarket() || item.sellMarket === this.selectedMarket()
-      );
+    // Wear filter
+    if (this.selectedWear() !== 'all') {
+      filtered = filtered.filter(item => item.wear === this.selectedWear());
     }
 
     // Min profit filter
     if (this.minProfit() > 0) {
-      filtered = filtered.filter(item => item.profitPercent >= this.minProfit());
+      filtered = filtered.filter(item => item.bestProfit !== null && item.bestProfit >= this.minProfit());
+    }
+
+    // Min ROI filter
+    if (this.minROI() > 0) {
+      filtered = filtered.filter(item => item.bestROI !== null && item.bestROI >= this.minROI());
+    }
+
+    // Profitable only filter
+    if (this.profitableOnly()) {
+      filtered = filtered.filter(item => item.profitable);
     }
 
     // Apply sorting
@@ -332,13 +159,18 @@ export class OpportunitiesComponent implements OnInit {
     this.updatePaginatedData();
   }
 
-  sortData(data: SkinOpportunity[]): SkinOpportunity[] {
+  sortData(data: ArbitrageOpportunity[]): ArbitrageOpportunity[] {
     const column = this.sortColumn();
     const direction = this.sortDirection();
 
     return [...data].sort((a, b) => {
-      let aValue = a[column as keyof SkinOpportunity];
-      let bValue = b[column as keyof SkinOpportunity];
+      let aValue = a[column as keyof ArbitrageOpportunity];
+      let bValue = b[column as keyof ArbitrageOpportunity];
+
+      // Handle null values
+      if (aValue === null && bValue === null) return 0;
+      if (aValue === null) return direction === 'asc' ? 1 : -1;
+      if (bValue === null) return direction === 'asc' ? -1 : 1;
 
       // Handle string vs number comparison
       if (typeof aValue === 'string') {
@@ -365,19 +197,30 @@ export class OpportunitiesComponent implements OnInit {
     this.applyFilters();
   }
 
-  onRarityChange(value: string) {
-    this.selectedRarity.set(value);
+  onCategoryChange(value: string) {
+    this.selectedCategory.set(value);
     this.applyFilters();
   }
 
-  onMarketChange(value: string) {
-    this.selectedMarket.set(value);
+  onWearChange(value: string) {
+    this.selectedWear.set(value);
     this.applyFilters();
   }
 
   onMinProfitChange(event: Event) {
     const value = parseFloat((event.target as HTMLInputElement).value) || 0;
     this.minProfit.set(value);
+    this.applyFilters();
+  }
+
+  onMinROIChange(event: Event) {
+    const value = parseFloat((event.target as HTMLInputElement).value) || 0;
+    this.minROI.set(value);
+    this.applyFilters();
+  }
+
+  onProfitableOnlyChange(value: boolean) {
+    this.profitableOnly.set(value);
     this.applyFilters();
   }
 
@@ -397,29 +240,35 @@ export class OpportunitiesComponent implements OnInit {
 
   clearFilters() {
     this.searchTerm.set('');
-    this.selectedRarity.set('all');
-    this.selectedMarket.set('all');
+    this.selectedCategory.set('all');
+    this.selectedWear.set('all');
     this.minProfit.set(0);
+    this.minROI.set(0);
+    this.profitableOnly.set(false);
     this.applyFilters();
   }
 
-  getRarityColor(rarity: string): string {
+  getDirectionColor(direction: string): string {
+    return direction === 'B→C' ? '#4caf50' : direction === 'C→B' ? '#2196f3' : '#757575';
+  }
+
+  getReliabilityColor(reliability: string): string {
     const colors: { [key: string]: string } = {
-      'Consumer Grade': '#b0c3d9',
-      'Industrial Grade': '#5e98d9',
-      'Mil-Spec': '#4b69ff',
-      'Restricted': '#8847ff',
-      'Classified': '#d32ce6',
-      'Covert': '#eb4b4b'
+      'High': '#4caf50',
+      'Medium': '#ff9800',
+      'Low': '#f44336',
+      'N/A': '#757575'
     };
-    return colors[rarity] || '#ffffff';
+    return colors[reliability] || '#757575';
   }
 
-  getTrendIcon(trend: string): string {
-    return trend === 'up' ? 'trending_up' : trend === 'down' ? 'trending_down' : 'trending_flat';
+  formatCurrency(value: number | null): string {
+    if (value === null) return 'N/A';
+    return `$${value.toFixed(2)}`;
   }
 
-  getTrendColor(trend: string): string {
-    return trend === 'up' ? '#4caf50' : trend === 'down' ? '#f44336' : '#ff9800';
+  formatPercent(value: number | null): string {
+    if (value === null) return 'N/A';
+    return `${value.toFixed(2)}%`;
   }
 }

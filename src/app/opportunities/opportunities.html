@@ -6,183 +6,266 @@
       </button>
       <div class="header-text">
         <h1>Arbitrage Opportunities</h1>
-        <p>{{ totalItems() }} opportunities found</p>
+        @if (isLoading()) {
+          <p>Loading opportunities...</p>
+        } @else if (error()) {
+          <p class="error-text">{{ error() }}</p>
+        } @else {
+          <p>{{ totalItems() }} opportunities found</p>
+        }
       </div>
+      <button mat-raised-button color="primary" (click)="loadData()" [disabled]="isLoading()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
     </div>
   </div>
 
-  <mat-card class="filters-card">
-    <div class="filters-container">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-label>Search skins</mat-label>
-        <input
-          matInput
-          placeholder="Search by name or quality..."
-          [value]="searchTerm()"
-          (input)="onSearchChange($event)"
-        />
-        <mat-icon matPrefix>search</mat-icon>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Rarity</mat-label>
-        <mat-select [value]="selectedRarity()" (selectionChange)="onRarityChange($event.value)">
-          @for (rarity of rarities; track rarity) {
-            <mat-option [value]="rarity">{{ rarity === 'all' ? 'All Rarities' : rarity }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Market</mat-label>
-        <mat-select [value]="selectedMarket()" (selectionChange)="onMarketChange($event.value)">
-          @for (market of markets; track market) {
-            <mat-option [value]="market">{{ market === 'all' ? 'All Markets' : market }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" class="profit-field">
-        <mat-label>Min Profit %</mat-label>
-        <input
-          matInput
-          type="number"
-          min="0"
-          step="1"
-          placeholder="0"
-          [value]="minProfit()"
-          (input)="onMinProfitChange($event)"
-        />
-        <mat-icon matPrefix>percent</mat-icon>
-      </mat-form-field>
-
-      <button mat-stroked-button (click)="clearFilters()" class="clear-button">
-        <mat-icon>clear</mat-icon>
-        Clear Filters
-      </button>
+  @if (isLoading()) {
+    <div class="loading-container">
+      <mat-spinner></mat-spinner>
+      <p>Fetching latest prices...</p>
     </div>
-  </mat-card>
+  } @else if (error()) {
+    <mat-card class="error-card">
+      <mat-icon color="warn">error</mat-icon>
+      <p>{{ error() }}</p>
+      <button mat-raised-button color="primary" (click)="loadData()">Try Again</button>
+    </mat-card>
+  } @else {
+    <mat-card class="filters-card">
+      <div class="filters-container">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Search items</mat-label>
+          <input
+            matInput
+            placeholder="Search by item name..."
+            [value]="searchTerm()"
+            (input)="onSearchChange($event)"
+          />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
 
-  <mat-card class="table-card">
-    <div class="table-container">
-      <table
-        mat-table
-        [dataSource]="paginatedOpportunities()"
-        matSort
-        (matSortChange)="onSortChange($event)"
-        [matSortActive]="sortColumn()"
-        [matSortDirection]="sortDirection()"
-        class="opportunities-table"
+        <mat-form-field appearance="outline">
+          <mat-label>Category</mat-label>
+          <mat-select [value]="selectedCategory()" (selectionChange)="onCategoryChange($event.value)">
+            @for (category of categories; track category) {
+              <mat-option [value]="category">{{ category === 'all' ? 'All Categories' : category }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Wear</mat-label>
+          <mat-select [value]="selectedWear()" (selectionChange)="onWearChange($event.value)">
+            @for (wear of wears; track wear) {
+              <mat-option [value]="wear">{{ wear === 'all' ? 'All Wears' : wear }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="number-field">
+          <mat-label>Min Profit $</mat-label>
+          <input
+            matInput
+            type="number"
+            min="0"
+            step="0.1"
+            placeholder="0"
+            [value]="minProfit()"
+            (input)="onMinProfitChange($event)"
+          />
+          <span matPrefix>$</span>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="number-field">
+          <mat-label>Min ROI %</mat-label>
+          <input
+            matInput
+            type="number"
+            min="0"
+            step="1"
+            placeholder="0"
+            [value]="minROI()"
+            (input)="onMinROIChange($event)"
+          />
+          <mat-icon matPrefix>percent</mat-icon>
+        </mat-form-field>
+
+        <div class="checkbox-filter">
+          <mat-checkbox
+            [checked]="profitableOnly()"
+            (change)="onProfitableOnlyChange($event.checked)"
+            color="primary"
+          >
+            Profitable Only
+          </mat-checkbox>
+        </div>
+
+        <button mat-stroked-button (click)="clearFilters()" class="clear-button">
+          <mat-icon>clear</mat-icon>
+          Clear
+        </button>
+      </div>
+    </mat-card>
+
+    <mat-card class="table-card">
+      <div class="table-container">
+        <table
+          mat-table
+          [dataSource]="paginatedOpportunities()"
+          matSort
+          (matSortChange)="onSortChange($event)"
+          [matSortActive]="sortColumn()"
+          [matSortDirection]="sortDirection()"
+          class="opportunities-table"
+        >
+          <!-- Item Name Column -->
+          <ng-container matColumnDef="itemName">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Item Name</th>
+            <td mat-cell *matCellDef="let item">
+              <div class="item-name">
+                {{ item.itemName }}
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- CSFloat Price Column -->
+          <ng-container matColumnDef="csfloatPrice">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>CSFloat Price</th>
+            <td mat-cell *matCellDef="let item" class="price-cell">
+              {{ formatCurrency(item.csfloatPrice) }}
+            </td>
+          </ng-container>
+
+          <!-- BUFF163 Price Column -->
+          <ng-container matColumnDef="buff163Price">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>BUFF163 Price</th>
+            <td mat-cell *matCellDef="let item" class="price-cell">
+              {{ formatCurrency(item.buff163Price) }}
+            </td>
+          </ng-container>
+
+          <!-- Raw Price Diff Column -->
+          <ng-container matColumnDef="rawPriceDiff">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Price Diff</th>
+            <td mat-cell *matCellDef="let item" class="diff-cell" [class.positive]="item.rawPriceDiff && item.rawPriceDiff > 0" [class.negative]="item.rawPriceDiff && item.rawPriceDiff < 0">
+              {{ formatCurrency(item.rawPriceDiff) }}
+            </td>
+          </ng-container>
+
+          <!-- % Difference Column -->
+          <ng-container matColumnDef="percentDifference">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>% Diff</th>
+            <td mat-cell *matCellDef="let item" [class.positive]="item.percentDifference && item.percentDifference > 0" [class.negative]="item.percentDifference && item.percentDifference < 0">
+              {{ formatPercent(item.percentDifference) }}
+            </td>
+          </ng-container>
+
+          <!-- Cheaper Platform Column -->
+          <ng-container matColumnDef="cheaperPlatform">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Cheaper On</th>
+            <td mat-cell *matCellDef="let item">
+              <mat-chip [class.csfloat-chip]="item.cheaperPlatform === 'CSFloat'" [class.buff-chip]="item.cheaperPlatform === 'Buff163'">
+                {{ item.cheaperPlatform }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <!-- Best Direction Column -->
+          <ng-container matColumnDef="bestDirection">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Best Route</th>
+            <td mat-cell *matCellDef="let item">
+              <mat-chip [style.background-color]="getDirectionColor(item.bestDirection)">
+                {{ item.bestDirection }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <!-- Best Profit Column -->
+          <ng-container matColumnDef="bestProfit">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Best Profit</th>
+            <td mat-cell *matCellDef="let item" class="profit-cell" [class.profitable]="item.profitable">
+              {{ formatCurrency(item.bestProfit) }}
+            </td>
+          </ng-container>
+
+          <!-- Best ROI Column -->
+          <ng-container matColumnDef="bestROI">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Best ROI %</th>
+            <td mat-cell *matCellDef="let item">
+              <div class="roi-badge" [class.profitable]="item.bestROI && item.bestROI > 0">
+                {{ formatPercent(item.bestROI) }}
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- B→C ROI Column -->
+          <ng-container matColumnDef="bc_roi">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header matTooltip="Buff → CSFloat ROI">B→C ROI %</th>
+            <td mat-cell *matCellDef="let item">
+              {{ formatPercent(item.bc_roi) }}
+            </td>
+          </ng-container>
+
+          <!-- C→B ROI Column -->
+          <ng-container matColumnDef="cb_roi">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header matTooltip="CSFloat → Buff ROI">C→B ROI %</th>
+            <td mat-cell *matCellDef="let item">
+              {{ formatPercent(item.cb_roi) }}
+            </td>
+          </ng-container>
+
+          <!-- Profitable Column -->
+          <ng-container matColumnDef="profitable">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Profitable?</th>
+            <td mat-cell *matCellDef="let item">
+              <mat-icon [class.profitable-icon]="item.profitable" [class.unprofitable-icon]="!item.profitable">
+                {{ item.profitable ? 'check_circle' : 'cancel' }}
+              </mat-icon>
+            </td>
+          </ng-container>
+
+          <!-- Category Column -->
+          <ng-container matColumnDef="category">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Category</th>
+            <td mat-cell *matCellDef="let item">
+              {{ item.category }}
+            </td>
+          </ng-container>
+
+          <!-- Wear Column -->
+          <ng-container matColumnDef="wear">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Wear</th>
+            <td mat-cell *matCellDef="let item">
+              {{ item.wear }}
+            </td>
+          </ng-container>
+
+          <!-- Reliability Column -->
+          <ng-container matColumnDef="reliability">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Reliability</th>
+            <td mat-cell *matCellDef="let item">
+              <mat-chip [style.background-color]="getReliabilityColor(item.reliability)">
+                {{ item.reliability }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns" class="table-row"></tr>
+        </table>
+      </div>
+
+      <mat-paginator
+        [length]="totalItems()"
+        [pageSize]="pageSize()"
+        [pageIndex]="pageIndex()"
+        [pageSizeOptions]="[10, 25, 50, 100, 250]"
+        (page)="onPageChange($event)"
+        showFirstLastButtons
       >
-        <!-- Name Column -->
-        <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Item Name</th>
-          <td mat-cell *matCellDef="let item">
-            <div class="item-name">
-              <strong>{{ item.name }}</strong>
-              <span class="quality">{{ item.quality }}</span>
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- Quality Column -->
-        <ng-container matColumnDef="quality">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Quality</th>
-          <td mat-cell *matCellDef="let item">{{ item.quality }}</td>
-        </ng-container>
-
-        <!-- Rarity Column -->
-        <ng-container matColumnDef="rarity">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Rarity</th>
-          <td mat-cell *matCellDef="let item">
-            <mat-chip [style.background-color]="getRarityColor(item.rarity)" class="rarity-chip">
-              {{ item.rarity }}
-            </mat-chip>
-          </td>
-        </ng-container>
-
-        <!-- Buy Market Column -->
-        <ng-container matColumnDef="buyMarket">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Buy From</th>
-          <td mat-cell *matCellDef="let item">
-            <div class="market-info">
-              <mat-icon class="market-icon">shopping_cart</mat-icon>
-              {{ item.buyMarket }}
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- Buy Price Column -->
-        <ng-container matColumnDef="buyPrice">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Buy Price</th>
-          <td mat-cell *matCellDef="let item" class="price-cell">
-            ${{ item.buyPrice.toFixed(2) }}
-          </td>
-        </ng-container>
-
-        <!-- Sell Market Column -->
-        <ng-container matColumnDef="sellMarket">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Sell To</th>
-          <td mat-cell *matCellDef="let item">
-            <div class="market-info">
-              <mat-icon class="market-icon">sell</mat-icon>
-              {{ item.sellMarket }}
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- Sell Price Column -->
-        <ng-container matColumnDef="sellPrice">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Sell Price</th>
-          <td mat-cell *matCellDef="let item" class="price-cell">
-            ${{ item.sellPrice.toFixed(2) }}
-          </td>
-        </ng-container>
-
-        <!-- Profit Column -->
-        <ng-container matColumnDef="profit">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Profit</th>
-          <td mat-cell *matCellDef="let item" class="profit-cell">
-            ${{ item.profit.toFixed(2) }}
-          </td>
-        </ng-container>
-
-        <!-- Profit Percent Column -->
-        <ng-container matColumnDef="profitPercent">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Profit %</th>
-          <td mat-cell *matCellDef="let item">
-            <div class="profit-percent">
-              {{ item.profitPercent.toFixed(2) }}%
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- Trend Column -->
-        <ng-container matColumnDef="trend">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Trend</th>
-          <td mat-cell *matCellDef="let item">
-            <mat-icon
-              [style.color]="getTrendColor(item.trend)"
-              [matTooltip]="item.trend === 'up' ? 'Price increasing' : item.trend === 'down' ? 'Price decreasing' : 'Price stable'"
-            >
-              {{ getTrendIcon(item.trend) }}
-            </mat-icon>
-          </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns" class="table-row"></tr>
-      </table>
-    </div>
-
-    <mat-paginator
-      [length]="totalItems()"
-      [pageSize]="pageSize()"
-      [pageIndex]="pageIndex()"
-      [pageSizeOptions]="[5, 10, 25, 50, 100]"
-      (page)="onPageChange($event)"
-      showFirstLastButtons
-    >
-    </mat-paginator>
-  </mat-card>
+      </mat-paginator>
+    </mat-card>
+  }
 </div>
